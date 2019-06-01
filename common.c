@@ -25,16 +25,17 @@ static inline IUINT32 iclock()
 	return (IUINT32)(iclock64() & 0xfffffffful);
 }
 
-//发送接收待分离
+//待分离...
 static int init_send_handle()
 {
-#if 0
+#if defined(DBUG_CLIENT)
 	int sRet = -1;
+	printf("_________send_____\n");
+
+    memset(kcp_arg.client_data.CliBuf, 0, 512);
 	sprintf(kcp_arg.client_data.CliBuf, "_%s_", (char *)"it's a client msg");
-	//memset(&kcp_arg.client_data.stCliAddr, 0, sizeof(struct sockaddr_in));
-	printf("______%d\n", g_client_data.sClientFd);
-	sRet = sendto(g_client_data.sClientFd, (const void *)kcp_arg.client_data.CliBuf,
-	MAX_CLIENT_BUF_SIZE, 0, (const struct sockaddr*)&kcp_arg.client_data.stCliAddr, 
+	sRet = sendto(g_client_data.sClientFd, kcp_arg.client_data.CliBuf+1,
+	MAX_CLIENT_BUF_SIZE, 0, (struct sockaddr*)&kcp_arg.client_data.stCliAddr, 
 	sizeof(kcp_arg.client_data.stCliAddr));
 	if(0 == sRet)
 	{
@@ -53,15 +54,17 @@ static int init_send_handle()
 	return SUCCESS_1;
 }
 
-
+//待分离...
 static int init_recv_handle()
 {
-#if 1
+#if defined(DBUG_SERVER)
     int sRet = -1;
-	//memset(&kcp_arg.client_data.stCliAddr, 0, sizeof(struct sockaddr_in));
+printf("_________recv_____\n");
+    socklen_t CliAddrLen = sizeof(kcp_arg.client_data.stCliAddr);
+    memset(kcp_arg.client_data.CliBuf, 0, 512);
 	sRet = recvfrom(g_server_data.sServerFd, kcp_arg.client_data.CliBuf,
 		MAX_CLIENT_BUF_SIZE, 0, (struct sockaddr *)&kcp_arg.client_data.stCliAddr, 
-	    (socklen_t*)sizeof(kcp_arg.client_data.stCliAddr));
+	    &CliAddrLen);
 	if(0 == sRet)
 	{
        PRINTF("Client exit.\n");
@@ -73,7 +76,7 @@ static int init_recv_handle()
 	   //...
 	   return RECV_DATA_FAILED;
     }
-
+printf("___recv_________%s_\n", kcp_arg.client_data.CliBuf);
 	//kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
 	ikcp_input(kcp_arg.client_data.kcp, kcp_arg.client_data.CliBuf, sRet);
 #endif
@@ -82,7 +85,7 @@ static int init_recv_handle()
 
 int kcp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 {
-#if 0
+#if defined(DBUG_CLIENT)
     PRINTF("-------------udp_output--------------\n");
 	
 	init_send_handle();
