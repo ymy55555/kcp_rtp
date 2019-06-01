@@ -10,17 +10,17 @@ CFLAGS += $(DEBUG)
 EX_FLAGS += $(COMPILE)
 
 #编译选项
-KCP_INC_DIR += -I./include/
+KCP_INC_DIR += -I./
 INCLUDE = $(KCP_INC_DIR)
 
 #LIBS +=
 KCP_COMMON_SRC = \
-          ./src/ikcp.c \
-		  ./src/common.c
+          ./ikcp.c \
+		  ./common.c
 KCP_SERVER_SRC = \
-          ./src/kcp_server.c 
+          ./kcp_server.c 
 KCP_CLIENT_SRC = \
-           ./src/kcp_client.c
+           ./kcp_client.c
 SRC = $(KCP_COMMON_SRC)
 SERVER_SRC = $(KCP_SERVER_SRC)
 CLIENT_SRC = $(KCP_CLIENT_SRC)
