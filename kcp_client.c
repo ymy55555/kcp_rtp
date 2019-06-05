@@ -1,70 +1,83 @@
-#include "common.h"
+#include "common.h"    
 #include "kcp_client.h"
+#include "cirqueue.h"
 
-UDP_CLIENT_DATA g_client_data = {
-	.sClientFd = -1,
+
+    //int sClientFd;
+	//int sSysRunState;
+	//int sWndSize;
+	//int sUpdateTime;
+	//struct sockaddr_in stTransAddr;
+
+UDP_CLIENT_DATA g_client_data = { 
+    .sClientFd = -1,
+	.stTransAddr = {},
 	.sSysRunState = SUCCESS_1,
 	.sWndSize = 128,
 	.sUpdateTime = 20,//ms
 };
 
-
-static int init_udp_client()
+static void config_client_param()
 {
-	memset(&g_client_data.sClientAddr, 0, sizeof(struct sockaddr));
-	g_client_data.sClientFd = socket(AF_INET, SOCK_DGRAM,IPPROTO_UDP);
-	if (-1 == g_client_data.sClientFd)
+    g_client_data.stTransAddr.sin_family = AF_INET;
+    g_client_data.stTransAddr.sin_port = htons(UDP_PORT);
+    g_client_data.stTransAddr.sin_addr.s_addr = inet_addr(UDP_IP);
+}
+
+static int init_client()
+{
+    g_client_data.sClientFd = socket(AF_INET,SOCK_DGRAM,0);
+    if (-1 == g_client_data.sClientFd)
 	{
 	    PRINTF("Socket failed.\n");
 		close(g_client_data.sClientFd);
 		return FALSE_0;
 	}
-	
+    return SUCCESS_1;
+   
+}
 
-	g_client_data.sClientAddr.sin_family = AF_INET;
-#if defined(UDP_IP) && defined(CLIENT_BIND_SERVER)
-    g_client_data.sClientAddr.sin_addr.s_addr = inet_addr((const char *)UDP_IP);;
-#else
-	g_client_data.sClientAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-#endif
-     g_client_data.sClientAddr.sin_port = htons(UDP_PORT);
+static void free_client()
+{
+    
+    close(g_client_data.sClientFd);
+	cirqueue_arg.cirqueue_free(cirqueue_arg.pqueue);
+}
 
-#if defined(CLIENT_BIND_SERVER)
-	if(SUCCESS_0 != bind(g_client_data.sClientFd,
-		(struct sockaddr *)&g_client_data.sClientAddr, sizeof(g_client_data.sClientAddr)))
-	{
-	    PRINTF("Bind falied.\n");
-		close(g_client_data.sClientFd);
+int main(int argc, char const *argv[])
+{
+	 int sRet = -1;
+	 config_client_param();
+	 if(SUCCESS_1 != init_client())
+	 {
+        PRINTF("Init udp client failed.\n");
 		return FALSE_0;
-	}	
-#endif
-	return SUCCESS_1;
+	 }
+	 kcp_arg.init_kcp(0x002, (void *)"0", g_client_data.sWndSize,
+	                        DEFAULT_MODE, g_client_data.sUpdateTime);
+	 char buf[255];
+	 while(1)
+     {
+          
+		  kcp_arg.isleep(1);
+		  buf[0] = '\0';
+          PRINTF("Plz input data:");
+          gets(buf);
+		  ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
+		  sRet = ikcp_send(kcp_arg.kcp, buf, strlen(buf));
+	      if(sRet < 0){
+				PRINTF("client send failed.\n");
+				continue;
+		  }
+		  ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
+          //sendto(g_client_data.sClientFd,buf,strlen(buf)+1,0,(struct sockaddr*)& g_client_data.stTransAddr,sizeof( g_client_data.stTransAddr));
+          //if(0 == strcmp(buf,"q")) break;
+
+         // recvfrom(g_client_data.sClientFd,buf,sizeof(buf),0,(struct sockaddr*)& g_client_data.stTransAddr,&addr_len);
+         // printf("Recv:%s\n",buf);
+         // if(0 == strcmp(buf,"q")) break;
+   
+     }
+	 free_client();
+     return 0;
 }
-
-int main(int argc, char *argv[])
-{   
-    int sRet = -1;
-    if(SUCCESS_1 != init_udp_client())
-    {
-          PRINTF("Init udp client failed.\n");
-		  exit(1);
-	}
-	kcp_arg.init_kcp(0x55555555, (void *) kcp_arg.client_data.CliBuf, g_client_data.sWndSize, DEFAULT_MODE, g_client_data.sUpdateTime);
-    while(g_client_data.sSysRunState) 
-    {
-		kcp_arg.isleep(1);
-		ikcp_update(kcp_arg.client_data.kcp, kcp_arg.iclock());
-		sprintf(kcp_arg.client_data.CliBuf, "%s", (char *)"123456");
-		sRet = ikcp_send(kcp_arg.client_data.kcp, kcp_arg.client_data.CliBuf, MAX_CLIENT_BUF_SIZE);
-		ikcp_update(kcp_arg.client_data.kcp, kcp_arg.iclock());
-		if(sRet < 0)
-		{
-			break;
-		}
-		//PRINTF("ikcp_recv:%s\n", kcp_arg.client_data.CliBuf);
-		//sleep(1);
-	}
-	return 0;
-}
-
-
