@@ -2,7 +2,7 @@
 #define _KCP_CLIENT_H_
 #include "common.h"
 
-//#define CLIENT_BIND_SERVER
+#define CLIENT_BIND_SERVER
 
 typedef struct _udp_client_data_
 {
@@ -10,12 +10,10 @@ typedef struct _udp_client_data_
 	int sSysRunState;
 	int sWndSize;
 	int sUpdateTime;
-	struct sockaddr_in sClientAddr;
+	struct sockaddr_in stTransAddr;
 }UDP_CLIENT_DATA;
 
 extern UDP_CLIENT_DATA g_client_data;
-
-
 
 
 
