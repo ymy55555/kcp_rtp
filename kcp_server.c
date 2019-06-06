@@ -27,17 +27,18 @@ static void config_server_param()
 static int init_udp_server()
 {
     int sRet = -1;
-    g_server_data.sServerFd = socket(AF_INET,SOCK_DGRAM,0);
-	if (-1 == g_server_data.sServerFd)
+    g_server_data.sServerFd = socket(AF_INET, SOCK_DGRAM, 0);
+	if(-1 == g_server_data.sServerFd)
 	{
 	    PRINTF("Socket failed.\n");
 		close(g_server_data.sServerFd);
 		return FALSE_0;
 	}
-    sRet = bind( g_server_data.sServerFd,(struct sockaddr*)&g_server_data.stServerAddr,sizeof(g_server_data.stServerAddr));
+    sRet = bind(g_server_data.sServerFd, (struct sockaddr*)&g_server_data.stServerAddr,
+                sizeof(g_server_data.stServerAddr));
 	if(SUCCESS_0 != sRet)
 	{
-		PRINTF("Bind falied.\n");
+		PRINTF("Bind falied.__%d\n", errno);
 		close(g_server_data.sServerFd);
 		return FALSE_0;
 	}
@@ -101,21 +102,19 @@ int main(int argc, char const *argv[])
 	    PRINTF("Init server failed.\n");
 		return FALSE_0;
 	 }
-	 kcp_arg.init_kcp(0x001, (void *)"0", g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
-	 char buf[128] = {0};
+	 kcp_arg.init_kcp(0x001, (void *)"1111", g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
 	 while(1)
      {
 	      kcp_arg.isleep(1);
-          buf[0] = '\0';
-		  printf("____________1__________\n");
+		  PRINTF("____________1__________\n");
          // memset(&g_server_data.stTransAddr, 0, sizeof(g_server_data.stTransAddr));
-          (void)kcp_arg.init_recv_handle(g_server_data.sServerFd, buf, sizeof(buf), &g_server_data.stTransAddr);
+          (void)kcp_arg.init_recv_handle(g_server_data.sServerFd, &g_server_data.stTransAddr);
 		// printf("___________please input data:\n");
 		// gets(buf);
          //待定义发送规则
          //发送地址来自接收地址
 		 //(void)kcp_arg.init_send_handle(g_server_data.sServerFd, buf, sizeof(buf), &g_server_data.stTransAddr);
-		 printf("____________2__________\n");
+		 PRINTF("____________2__________\n");
      }  
 	 free_server();
      return 0;
