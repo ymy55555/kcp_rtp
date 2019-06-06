@@ -121,7 +121,7 @@ int main(int argc, char const *argv[])
 	    free_client();
 	    return FALSE_0;
 	 }
-	 kcp_arg.init_kcp(0x001, (void *)&stClientData, g_client_data.sWndSize,
+	 kcp_arg.init_kcp(g_client_data.stTransAddr.sin_family, (void *)&stClientData, g_client_data.sWndSize,
 	                        DEFAULT_MODE, g_client_data.sUpdateTime);
 	 main_loop(stClientData);
 	 free_client();
