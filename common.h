@@ -24,7 +24,7 @@
 #define FALSE_1     1
 
 #define UDP_IP  "192.168.5.84"  //"127.0.0.1"
-#define UDP_PORT 5577
+#define UDP_PORT 6000
 
 
 #define PRINTF(fmt...)   \
@@ -37,10 +37,9 @@
 
 typedef struct _kcp_arg_
 {
-    int (*init_send_handle)(int sSocketFd, const char *sSendBuf, 
+    int (*init_send_handle)(int sSocketFd, void *sSendBuf, 
                  int sSendBufSize, struct sockaddr_in *stTransAddr);
-    int (*init_recv_handle)(int sSocketFd, char *sRecvBuf, 
-                 int sRecvBufSize, struct sockaddr_in *stTransAddr);
+    int (*init_recv_handle)(int sSocketFd, struct sockaddr_in *stTransAddr);
 	int (*init_kcp)(IUINT32 sConvNo, void *pUserData, int sWndSize, int sTransMode, IUINT32 sUpdateTime);
 	IUINT32 (*iclock)();
 	void (*isleep)(unsigned long millisecond);
@@ -54,6 +53,15 @@ typedef enum{
 	NORMAL_MODE,
 	QUICK_MODE,
 }TRANS_MODE;
+
+typedef struct _kcp_transfrom_data_
+{	
+	char uuidBuf[36];
+	char DataBuf[512];
+	char ClientIpBuf[15];
+	int sClientPort;
+}KCP_TRANSFROM_DATA;
+
 extern KCP_ARG kcp_arg;
 
 #endif
