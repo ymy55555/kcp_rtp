@@ -27,10 +27,15 @@ static inline IUINT32 iclock()
 }
 
 //UDP发送的地址来自接收的客户端的地址
-static int init_send_handle(int sSocketFd, const char *sSendBuf, 
+static int init_send_handle(int sSocketFd, void *sSendBuf, 
                  int sSendBufSize, struct sockaddr_in *stTransAddr)
 {
 	int sRet = -1;
+	KCP_TRANSFROM_DATA *stClientData = NULL;
+	stClientData = (KCP_TRANSFROM_DATA *)sSendBuf;
+	printf("____________sendto___uuid:%s\n", stClientData->uuidBuf);
+	printf("____________sendto____ip:%s  port:%d\n", stClientData->ClientIpBuf,
+		   stClientData->sClientPort);
 	sRet = sendto(sSocketFd, sSendBuf, sSendBufSize, 0,
 		(struct sockaddr *)stTransAddr, sizeof(struct sockaddr_in));
 	if(0 == sRet)
@@ -48,18 +53,19 @@ static int init_send_handle(int sSocketFd, const char *sSendBuf,
 	return SUCCESS_1;
 }
 
-
 //待分离...
-static int init_recv_handle(int sSocketFd, char *sRecvBuf, 
-                 int sRecvBufSize, struct sockaddr_in *stTransAddr)
+static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 {
      int sRet = -1;
-	 cirqueue_datatype stQueueData;
-	 memset(&stQueueData, 0, sizeof(stQueueData));
+	 void *sRecvBuf;
+	 cirqueue_datatype stCirqueueData;
+	 KCP_TRANSFROM_DATA *pKcpData = NULL;
+	 memset(&stCirqueueData, 0, sizeof(stCirqueueData));
+	 sRecvBuf = (void *)malloc(MAX_CLIENT_BUF_SIZE);
 	 socklen_t addr_len = sizeof(struct sockaddr_in);
 	 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
-	 sRet = recvfrom(sSocketFd, sRecvBuf,sRecvBufSize, 0,
-	 	        (struct sockaddr *)stTransAddr, &addr_len);
+	 sRet = recvfrom(sSocketFd, sRecvBuf,MAX_CLIENT_BUF_SIZE, 0,
+	 	                         (struct sockaddr *)stTransAddr, &addr_len);
 	 if(-1 == sRet)
 	 {
 		PRINTF("recvfrom data failed.");
@@ -67,19 +73,28 @@ static int init_recv_handle(int sSocketFd, char *sRecvBuf,
 		return FALSE_0;
 	 }
 	 
-	 printf("____________3_________\n");
-	 memcpy(&stQueueData.stClientAddr, stTransAddr, sizeof(struct sockaddr_in));
-	 stQueueData.cli_fd = sSocketFd;
-	 uuid_generate_time_safe(stQueueData.uuid);
-	 cirqueue_arg.cirqueue_insert(cirqueue_arg.pqueue, stQueueData);
-	 char tmpbuf[36] = {0};
-	 uuid_unparse(stQueueData.uuid, tmpbuf);
-	 PRINTF("___recv_________%s____uuid:%s\n", sRecvBuf, tmpbuf);
-	 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
+	 PRINTF("____________3_________\n");
+
+     pKcpData = (KCP_TRANSFROM_DATA *)sRecvBuf;
+
+
+	 //KCP DATA --> queue
+	 memcpy(stCirqueueData.uuidBuf, pKcpData->uuidBuf, 36);
 	 
+	 memcpy(stCirqueueData.ClientIpBuf, pKcpData->ClientIpBuf, 15);
+	 stCirqueueData.sClientPort = pKcpData->sClientPort;
+	 printf("------------client uuid:%s\n", stCirqueueData.uuidBuf);
+	 
+	 printf("------------client ip:%s---port:%d\n", stCirqueueData.ClientIpBuf, 
+	 	           stCirqueueData.sClientPort);
+	 cirqueue_arg.cirqueue_insert(cirqueue_arg.pqueue, stCirqueueData);
+
+	 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
 	 sRet = -1;
-	 sRet = ikcp_input(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
-	 PRINTF("ikcp_input:%s\n", sRecvBuf);
+	 char buf[100];
+	 sprintf(buf, "%s", (char *)"123");
+	 sRet = ikcp_input(kcp_arg.kcp, buf, MAX_CLIENT_BUF_SIZE);
+	 //PRINTF("ikcp_input:%s\n", sRecvBuf);
      if (sRet < 0) 
 	 {
         PRINTF("ikcp_input error:, ret :%d\n", sRet);
@@ -89,33 +104,37 @@ static int init_recv_handle(int sSocketFd, char *sRecvBuf,
      while(1)
 	 {
 	    kcp_arg.isleep(1);
-        sRet = ikcp_recv(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
+        sRet = ikcp_recv(kcp_arg.kcp,  (char *)sRecvBuf, MAX_CLIENT_BUF_SIZE);
         if(sRet < 0){
             break;
         }
 		//ikcp_send(kcp_arg.kcp, sRecvBuf, sRet);//返回
-        PRINTF("ikcp_send:%s\n", sRecvBuf);
+        //PRINTF("ikcp_send:%s\n", sRecvBuf);
     }
 	return SUCCESS_1;
 }
 
 int kcp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 {
-    //对地址做空判断，每次连接完清空地客户数据
-#if defined(DBUG_SERVER)
+    if(!user)
+    {
+       PRINTF("user is null.");
+	   return 0;
+	}
+#if defined(DEFINE_SERVER)
 	printf("____________server send__________\n");
 	if(SUCCESS_1 != init_send_handle(g_server_data.sServerFd,
-		buf, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
+		user, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
 	{
 	   PRINTF("Send failed.\n");	
 	}
-#elif defined(DBUG_CLIENT)
-printf("____________client send_________\n");
-if(SUCCESS_1 != init_send_handle(g_client_data.sClientFd,
-	buf, MAX_CLIENT_BUF_SIZE, &g_client_data.stTransAddr))
-{
-   PRINTF("Send failed.\n");	
-}
+#elif defined(DEFINE_CLIENT)
+	printf("____________client send_________\n");
+	if(SUCCESS_1 != init_send_handle(g_client_data.sClientFd,
+		user, MAX_CLIENT_BUF_SIZE, &g_client_data.stTransAddr))
+	{
+	   PRINTF("Send failed.\n");	
+	}
 #endif
 	return 0;
 }
@@ -188,5 +207,4 @@ KCP_ARG kcp_arg = {
     .isleep = isleep,
     .g_sRecvFlag = FALSE_0,
 };
-
 
