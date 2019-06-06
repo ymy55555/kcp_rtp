@@ -102,7 +102,7 @@ int main(int argc, char const *argv[])
 	    PRINTF("Init server failed.\n");
 		return FALSE_0;
 	 }
-	 kcp_arg.init_kcp(0x001, (void *)"1111", g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
+	 kcp_arg.init_kcp(g_server_data.stServerAddr.sin_family, (void *)"1111", g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
 	 while(1)
      {
 	      kcp_arg.isleep(1);
