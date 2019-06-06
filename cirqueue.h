@@ -7,9 +7,10 @@
 //队列数据
 typedef struct cirqueue_data
 {
-	uuid_t uuid;
-    int cli_fd;
-    struct sockaddr_in stClientAddr;
+	char uuidBuf[36];
+	char DataBuf[512];
+	char ClientIpBuf[15];
+	int sClientPort;
 }QUEUE_DATA;
 
 typedef QUEUE_DATA cirqueue_datatype;
