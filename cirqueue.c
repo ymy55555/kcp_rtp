@@ -66,7 +66,8 @@ static int cirqueue_out(cir_pqueue pq,cirqueue_datatype *out_data)
 
 static void cirqueue_free(cir_pqueue pq)
 {
-	  int i;
+	  int i = -1;
+	  uuid_t uuid;
       if(SUCCESS_1 == cirqueue_empty(pq))
       {
            return;
@@ -74,7 +75,9 @@ static void cirqueue_free(cir_pqueue pq)
 	  printf("\n---------------circle queue free---------------\n");
       for(i=(pq->front+1)%CIRCLE_QUEUE_SIZE;i!=(pq->rear+1)%CIRCLE_QUEUE_SIZE;i=(i+1)%CIRCLE_QUEUE_SIZE)
 	  {
-	    uuid_clear(pq->queue_data[i].uuid);
+	  	
+	  	uuid_parse(pq->queue_data[i].uuidBuf, uuid);
+	    uuid_clear(uuid);
 	  }
       free(pq);
 }
@@ -84,7 +87,6 @@ static void cirqueue_free(cir_pqueue pq)
 static void cirqueue_display(cir_pqueue pq)
 {
       int i;
-      char cli_ip_addr[16] = {0};
       if(SUCCESS_1 == cirqueue_empty(pq))
       {
            return;
@@ -92,17 +94,9 @@ static void cirqueue_display(cir_pqueue pq)
 	  printf("\n---------------circle queue data start---------------\n");
       for(i=(pq->front+1)%CIRCLE_QUEUE_SIZE;i!=(pq->rear+1)%CIRCLE_QUEUE_SIZE;i=(i+1)%CIRCLE_QUEUE_SIZE)
 	  {
-	     if(inet_ntop(AF_INET, (const void *)&pq->queue_data[i].stClientAddr.sin_addr.s_addr, cli_ip_addr, sizeof(pq->queue_data[i].stClientAddr)) != NULL) 
-    	 {
-             printf("cirqueue No :%d\n", i);
-             printf("     IP:%s\n", cli_ip_addr);
-             printf("   PORT:%d\n", ntohs(pq->queue_data[i].stClientAddr.sin_port));
-         } 
-    	 else 
-    	 {
-            PRINTF("queue info printf is failed.\n");
-            return;
-         }
+            // printf("cirqueue No :%d\n", i);
+             //printf("     IP:%s\n", );
+            // printf("   PORT:%d\n", ));
          printf("\n");
 	  }
 	  printf("---------------circle queue data end--------------\n");
