@@ -13,10 +13,11 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <uuid/uuid.h>
+#include <sys/ioctl.h>
 
 //#include "iuuid.h"
 #define MAX_KCP_NUM 32
-#define MAX_CLIENT_BUF_SIZE 512
+#define MAX_CLIENT_BUF_SIZE 1024
 
 #define SUCCESS_0   0
 #define FALSE_0     0
@@ -33,6 +34,10 @@
         printf(fmt);\
     }while(0)
 	
+typedef struct _istring_{
+	char **str; 	//the PChar of string array
+	size_t num; 	//the number of string
+}IString;
 
 
 typedef struct _kcp_arg_
@@ -43,6 +48,8 @@ typedef struct _kcp_arg_
 	int (*init_kcp)(IUINT32 sConvNo, void *pUserData, int sWndSize, int sTransMode, IUINT32 sUpdateTime);
 	IUINT32 (*iclock)();
 	void (*isleep)(unsigned long millisecond);
+	int (*MySplit)(char *src, char *delim, IString* istr);
+	void (*MySplitFree)(IString* istr);
 	//接受到客户端发送数据标识，
 	int g_sRecvFlag;
 	ikcpcb *kcp;
@@ -61,6 +68,24 @@ typedef struct _kcp_transfrom_data_
 	char ClientIpBuf[15];
 	int sClientPort;
 }KCP_TRANSFROM_DATA;
+
+typedef struct ikcp_seg
+{
+	struct IQUEUEHEAD node;
+	IUINT32 conv;
+	IUINT32 cmd;
+	IUINT32 frg;
+	IUINT32 wnd;
+	IUINT32 ts;
+	IUINT32 sn;
+	IUINT32 una;
+	IUINT32 len;
+	IUINT32 resendts;
+	IUINT32 rto;
+	IUINT32 fastack;
+	IUINT32 xmit;
+	char data[1];
+}IKCP_SEG;
 
 extern KCP_ARG kcp_arg;
 
