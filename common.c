@@ -31,11 +31,15 @@ static int init_send_handle(int sSocketFd, void *sSendBuf,
                  int sSendBufSize, struct sockaddr_in *stTransAddr)
 {
 	int sRet = -1;
-	KCP_TRANSFROM_DATA *stClientData = NULL;
-	stClientData = (KCP_TRANSFROM_DATA *)sSendBuf;
-	printf("____________sendto___uuid:%s\n", stClientData->uuidBuf);
-	printf("____________sendto____ip:%s  port:%d\n", stClientData->ClientIpBuf,
-		   stClientData->sClientPort);
+#if 1
+	IString istr;
+	if(kcp_arg.MySplit((char *)sSendBuf, (char *)"|", &istr))
+	{
+		printf("____________sendto___uuid:%s\n", istr.str[0]);
+		printf("____________sendto____ip:%s  port:%d\n", istr.str[1], atoi(istr.str[2]));
+		kcp_arg.MySplitFree(&istr);
+	}
+#endif  
 	sRet = sendto(sSocketFd, sSendBuf, sSendBufSize, 0,
 		(struct sockaddr *)stTransAddr, sizeof(struct sockaddr_in));
 	if(0 == sRet)
@@ -57,59 +61,55 @@ static int init_send_handle(int sSocketFd, void *sSendBuf,
 static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 {
      int sRet = -1;
-	 void *sRecvBuf;
+	 char *sRecvBuf;
+	 IString istr;
 	 cirqueue_datatype stCirqueueData;
-	 KCP_TRANSFROM_DATA *pKcpData = NULL;
 	 memset(&stCirqueueData, 0, sizeof(stCirqueueData));
 	 sRecvBuf = (void *)malloc(MAX_CLIENT_BUF_SIZE);
 	 socklen_t addr_len = sizeof(struct sockaddr_in);
 	 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
-	 sRet = recvfrom(sSocketFd, sRecvBuf,MAX_CLIENT_BUF_SIZE, 0,
+	 sRet = recvfrom(sSocketFd, (void *)sRecvBuf,MAX_CLIENT_BUF_SIZE, 0,
 	 	                         (struct sockaddr *)stTransAddr, &addr_len);
 	 if(-1 == sRet)
 	 {
-		PRINTF("recvfrom data failed.");
+		PRINTF("recvfrom data failed.   errno %d\n", errno);
 		//...
 		return FALSE_0;
 	 }
-	 
-	 PRINTF("____________3_________\n");
+	 	 
+#if 1
 
-     pKcpData = (KCP_TRANSFROM_DATA *)sRecvBuf;
-
-
-	 //KCP DATA --> queue
-	 memcpy(stCirqueueData.uuidBuf, pKcpData->uuidBuf, 36);
+	if(kcp_arg.MySplit((char *)sRecvBuf, (char *)"|", &istr))
+	{
+		 memcpy(stCirqueueData.uuidBuf, istr.str[0], 36);
+		 memcpy(stCirqueueData.ClientIpBuf, istr.str[1], 15);
+		 stCirqueueData.sClientPort = atoi(istr.str[2]);
+		 kcp_arg.MySplitFree(&istr); 
+	 }
+	 printf("-----------recv-client uuid:%s\n", stCirqueueData.uuidBuf);
 	 
-	 memcpy(stCirqueueData.ClientIpBuf, pKcpData->ClientIpBuf, 15);
-	 stCirqueueData.sClientPort = pKcpData->sClientPort;
-	 printf("------------client uuid:%s\n", stCirqueueData.uuidBuf);
-	 
-	 printf("------------client ip:%s---port:%d\n", stCirqueueData.ClientIpBuf, 
-	 	           stCirqueueData.sClientPort);
+	 printf("-----------recv-client ip:%s---port:%d\n", stCirqueueData.ClientIpBuf, 
+	 	                                                stCirqueueData.sClientPort);
 	 cirqueue_arg.cirqueue_insert(cirqueue_arg.pqueue, stCirqueueData);
-
+#endif	 
 	 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
 	 sRet = -1;
-	 char buf[100];
-	 sprintf(buf, "%s", (char *)"123");
-	 sRet = ikcp_input(kcp_arg.kcp, buf, MAX_CLIENT_BUF_SIZE);
+	 sRet = ikcp_input(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
 	 //PRINTF("ikcp_input:%s\n", sRecvBuf);
      if (sRet < 0) 
 	 {
         PRINTF("ikcp_input error:, ret :%d\n", sRet);
+		return FALSE_0;
      }
-
 	 sRet = -1;
      while(1)
 	 {
 	    kcp_arg.isleep(1);
-        sRet = ikcp_recv(kcp_arg.kcp,  (char *)sRecvBuf, MAX_CLIENT_BUF_SIZE);
+        sRet = ikcp_recv(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
         if(sRet < 0){
             break;
         }
-		//ikcp_send(kcp_arg.kcp, sRecvBuf, sRet);//返回
-        //PRINTF("ikcp_send:%s\n", sRecvBuf);
+		   ikcp_send(kcp_arg.kcp, sRecvBuf, sRet);//临时数据回射
     }
 	return SUCCESS_1;
 }
@@ -118,20 +118,19 @@ int kcp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 {
     if(!user)
     {
-       PRINTF("user is null.");
+       PRINTF("user is null.\n");
 	   return 0;
 	}
+
 #if defined(DEFINE_SERVER)
-	printf("____________server send__________\n");
 	if(SUCCESS_1 != init_send_handle(g_server_data.sServerFd,
-		user, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
+		         user, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
 	{
 	   PRINTF("Send failed.\n");	
 	}
 #elif defined(DEFINE_CLIENT)
-	printf("____________client send_________\n");
 	if(SUCCESS_1 != init_send_handle(g_client_data.sClientFd,
-		user, MAX_CLIENT_BUF_SIZE, &g_client_data.stTransAddr))
+		           user, MAX_CLIENT_BUF_SIZE, &g_client_data.stTransAddr))
 	{
 	   PRINTF("Send failed.\n");	
 	}
@@ -178,6 +177,8 @@ static int init_kcp(IUINT32 sConvNo, void *pUserData, int sWndSize, int sTransMo
 		   // 第四个参数 resend为快速重传指标，设置为2
 		   // 第五个参数 为是否禁用常规流控，这里禁止
 		   ikcp_nodelay(kcp_arg.kcp, 1, 10, 2, 1);
+		   kcp_arg.kcp->rx_minrto = 10;
+		   kcp_arg.kcp->fastresend = 1;
 	   break;
 	}
 	return SUCCESS_1;
@@ -198,6 +199,57 @@ static inline void isleep(unsigned long millisecond)
 	//Sleep(millisecond);
 	//#endif
 }
+ 
+ 
+/** \Split string by a char
+ *
+ * \param  src:the string that you want to split
+ * \param  delim:split string by this char
+ * \param  istr:a srtuct to save string-array's PChar and string's amount.
+ * \return  whether or not to split string successfully
+ *
+ */
+static int MySplit(char *src, char *delim, IString* istr)
+{
+    int i,ret = 1;
+    char *str = NULL, *p = NULL;
+ 
+    (*istr).num = 1;
+	str = (char*)calloc(strlen(src)+1,sizeof(char));
+	if (str == NULL) return 0;
+    (*istr).str = (char**)calloc(1,sizeof(char *));
+    if ((*istr).str == NULL) {ret = 0;goto exit;}
+    strcpy(str,src);
+ 
+	p = strtok(str, delim);
+	(*istr).str[0] = (char*)calloc(strlen(p)+1,sizeof(char));
+	if ((*istr).str[0] == NULL) return 0;
+ 	strcpy((*istr).str[0],p);
+	for(i = 1;p = strtok(NULL, delim);i++)
+    {
+        (*istr).num++;
+		
+        (*istr).str = (char**)realloc((*istr).str,(i+1)*sizeof(char *));
+        if ((*istr).str == NULL) {ret = 0;goto exit;}
+        (*istr).str[i] = (char*)calloc(strlen(p)+1,sizeof(char));
+        if ((*istr).str[0] == NULL){ret = 0;goto exit;}
+        strcpy((*istr).str[i],p);
+    }
+exit:
+    free(str);
+    str = p = NULL;
+ 
+    return ret;
+}
+static void MySplitFree(IString* istr)
+{
+	 int i = -1;
+     for (i=0;i<(*istr).num;i++)
+         free((*istr).str[i]);
+      free((*istr).str);
+}
+
+ 
 
 KCP_ARG kcp_arg = {
 	.init_send_handle = init_send_handle,
@@ -206,5 +258,8 @@ KCP_ARG kcp_arg = {
     .iclock = iclock,
     .isleep = isleep,
     .g_sRecvFlag = FALSE_0,
+
+    .MySplit = MySplit,
+    .MySplitFree = MySplitFree,
 };
 
