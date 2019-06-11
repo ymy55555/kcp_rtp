@@ -3,6 +3,7 @@
 #include "common.h"
 
 #define CLIENT_BIND_SERVER
+#define SOCKET_RECV_NOBLOCK  //接受=收数据非阻塞
 
 typedef struct _udp_client_data_
 {
