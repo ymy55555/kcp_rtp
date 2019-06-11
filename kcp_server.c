@@ -21,7 +21,7 @@ static void config_server_param()
 {
 	g_server_data.stServerAddr.sin_family = AF_INET;
 	g_server_data.stServerAddr.sin_port = htons(UDP_PORT);
-	g_server_data.stServerAddr.sin_addr.s_addr = htonl(INADDR_ANY);//inet_addr(UDP_IP);
+	g_server_data.stServerAddr.sin_addr.s_addr = inet_addr(UDP_IP);//htonl(INADDR_ANY);
 
 }
 static int init_udp_server()
@@ -97,24 +97,20 @@ static void free_server()
 int main(int argc, char const *argv[])
 {
 	 config_server_param();
+	 KCP_TRANSFROM_DATA stClientData;
 	 if(SUCCESS_1 != init_server())
 	 {
 	    PRINTF("Init server failed.\n");
 		return FALSE_0;
 	 }
-	 kcp_arg.init_kcp(g_server_data.stServerAddr.sin_family, (void *)"1111", g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
+	 kcp_arg.init_kcp(AF_INET, (void *)&stClientData, g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
 	 while(1)
      {
 	      kcp_arg.isleep(1);
-		  PRINTF("____________1__________\n");
-         // memset(&g_server_data.stTransAddr, 0, sizeof(g_server_data.stTransAddr));
           (void)kcp_arg.init_recv_handle(g_server_data.sServerFd, &g_server_data.stTransAddr);
-		// printf("___________please input data:\n");
-		// gets(buf);
          //待定义发送规则
          //发送地址来自接收地址
 		 //(void)kcp_arg.init_send_handle(g_server_data.sServerFd, buf, sizeof(buf), &g_server_data.stTransAddr);
-		 PRINTF("____________2__________\n");
      }  
 	 free_server();
      return 0;
