@@ -24,7 +24,7 @@ static void config_net_param()
     g_client_data.stTransAddr.sin_addr.s_addr = inet_addr(UDP_IP);
 }
 
-static int config_transfrom_data(KCP_TRANSFROM_DATA *stClientData)
+static int config_transfrom_data(char *ClientDataBuf)
 {
      
 	uuid_t	uuid;  
@@ -32,15 +32,15 @@ static int config_transfrom_data(KCP_TRANSFROM_DATA *stClientData)
 	uuid_clear(uuid);
 	char TmpIpBuf[15] = {0};
 	int sTmpPort = -1;
+	KCP_TRANSFROM_DATA stClientData;
 	sRet = uuid_generate_time_safe(uuid);
 	if(SUCCESS_0 != sRet)
 	{
 	   PRINTF("uuid is creat failed.\n");
 	   return FALSE_0;
 	}
-	uuid_unparse(uuid, stClientData->uuidBuf);
-	printf("Client creat uuid:%s\n", stClientData->uuidBuf);
-	//const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt);
+	uuid_unparse(uuid, stClientData.uuidBuf);
+	//printf("Client creat uuid:%s\n", stClientData->uuidBuf);
 	if(!inet_ntop(AF_INET, (const void *)&g_client_data.stTransAddr.sin_addr.s_addr, 
 		   TmpIpBuf, sizeof(TmpIpBuf))) 
 	{
@@ -48,9 +48,14 @@ static int config_transfrom_data(KCP_TRANSFROM_DATA *stClientData)
 		return FALSE_0;
     }
 	sTmpPort = ntohs(g_client_data.stTransAddr.sin_port);
-	strcpy(stClientData->ClientIpBuf, TmpIpBuf);
-	stClientData->sClientPort = sTmpPort; 
-    printf("client ip:%s  port:%d\n", TmpIpBuf, sTmpPort);
+	strcpy(stClientData.ClientIpBuf, TmpIpBuf);
+	stClientData.sClientPort = sTmpPort; 
+    //printf("client ip:%s  port:%d\n", TmpIpBuf, sTmpPort);
+	
+	sprintf(ClientDataBuf, "%s|%s|%d|%s", stClientData.uuidBuf,
+										  stClientData.ClientIpBuf,
+										  stClientData.sClientPort,
+										  stClientData.DataBuf);
 	return SUCCESS_1;
 }
 
@@ -62,6 +67,15 @@ static int init_client()
 	    PRINTF("Socket failed.\n");
 		return FALSE_0;
 	}
+#if defined(SOCKET_RECV_NOBLOCK)
+	//连接非阻塞
+	int sNoBlock = 1;
+    if(ioctl( g_client_data.sClientFd, FIONBIO, &sNoBlock) < 0)
+	{		
+	   PRINTF("ioctl FIONBIO failed.\n"); 
+       return FALSE_0;   
+	}
+#endif
     return SUCCESS_1;
    
 }
@@ -73,30 +87,27 @@ static void free_client()
 	cirqueue_arg.cirqueue_free(cirqueue_arg.pqueue);
 }
 
-static void main_loop(KCP_TRANSFROM_DATA stClientData)
+static void main_loop(char *ClientDataBuf)
 {
 	int sRet = -1;
     while(g_client_data.sSysRunState)
 	{
 		 kcp_arg.isleep(1);
-		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
-		 sRet = ikcp_send(kcp_arg.kcp, stClientData.DataBuf, sizeof(stClientData.DataBuf));
+		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());			 
+		 sRet = ikcp_send(kcp_arg.kcp, ClientDataBuf, MAX_CLIENT_BUF_SIZE);
 		 if(sRet < 0)
 		 {
 			   PRINTF("client send failed.\n");
 			   continue;
 		 }
 		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
-		 //sendto(g_client_data.sClientFd,buf,strlen(buf)+1,0,(struct sockaddr*)& g_client_data.stTransAddr,sizeof( g_client_data.stTransAddr));
-		 //if(0 == strcmp(buf,"q")) break;
-
-		// recvfrom(g_client_data.sClientFd,buf,sizeof(buf),0,(struct sockaddr*)& g_client_data.stTransAddr,&addr_len);
-		// printf("Recv:%s\n",buf);
-		// if(0 == strcmp(buf,"q")) break;
+		(void)kcp_arg.init_recv_handle(g_client_data.sClientFd, &g_client_data.stTransAddr);
+#if 1
 		char GetState;
 		printf("_______________continue or exit? y/n\n");
 		GetState = getchar();
 		if(GetState != '\n')break;
+#endif
   
 	}
 
@@ -105,8 +116,7 @@ static void main_loop(KCP_TRANSFROM_DATA stClientData)
 int main(int argc, char const *argv[])
 {
 	 
-	 KCP_TRANSFROM_DATA stClientData;
-	 memset(&stClientData, 0, sizeof(stClientData));
+	 char ClientDataBuf[MAX_CLIENT_BUF_SIZE];
 	 config_net_param();
 	 if(SUCCESS_1 != init_client())
 	 {
@@ -115,15 +125,16 @@ int main(int argc, char const *argv[])
 		return FALSE_0;
 	 }
 	 //Please initialize the network parameters before
-	 if(SUCCESS_1 != config_transfrom_data(&stClientData))
+	 if(SUCCESS_1 != config_transfrom_data(ClientDataBuf))
 	 {
 		PRINTF("Client config transfrom data failed.\n");
 	    free_client();
 	    return FALSE_0;
 	 }
-	 kcp_arg.init_kcp(g_client_data.stTransAddr.sin_family, (void *)&stClientData, g_client_data.sWndSize,
+
+	 kcp_arg.init_kcp(AF_INET, (void *)ClientDataBuf, g_client_data.sWndSize,
 	                        DEFAULT_MODE, g_client_data.sUpdateTime);
-	 main_loop(stClientData);
+	 main_loop(ClientDataBuf);
 	 free_client();
      return 0;
 }
