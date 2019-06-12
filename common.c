@@ -31,7 +31,7 @@ static int init_send_handle(int sSocketFd, void *sSendBuf,
                  int sSendBufSize, struct sockaddr_in *stTransAddr)
 {
 	int sRet = -1;
-#if 1
+#if 0
 	IString istr;
 	if(kcp_arg.MySplit((char *)sSendBuf, (char *)"|", &istr))
 	{
@@ -76,20 +76,20 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 		//...
 		return FALSE_0;
 	 }
-	 	 
-#if 1//判断ip是否存在，存在则跟新端口，不能存在添加新的队列节点
 
+#if 0
 	if(kcp_arg.MySplit((char *)sRecvBuf, (char *)"|", &istr))
 	{
 		 memcpy(stCirqueueData.uuidBuf, istr.str[0], 36);
 		 memcpy(stCirqueueData.ClientIpBuf, istr.str[1], 15);
-		 stCirqueueData.sClientPort = atoi(istr.str[2]);
 		 kcp_arg.MySplitFree(&istr); 
 	 }
+	
+	stCirqueueData.uClientPort = ntohs(stTransAddr->sin_port);
 	 printf("-----------recv-client uuid:%s\n", stCirqueueData.uuidBuf);
 	 
 	 printf("-----------recv-client ip:%s---port:%d\n", stCirqueueData.ClientIpBuf, 
-	 	                                                stCirqueueData.sClientPort);
+	 	                                                stCirqueueData.uClientPort);
 	 cirqueue_arg.cirqueue_insert(cirqueue_arg.pqueue, stCirqueueData);
 #endif	 
 	 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
@@ -98,7 +98,7 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 	 //PRINTF("ikcp_input:%s\n", sRecvBuf);
      if (sRet < 0) 
 	 {
-        PRINTF("ikcp_input error:, ret :%d\n", sRet);
+        PRINTF("ikcp_input error, ret :%d\n", sRet);
 		return FALSE_0;
      }
 	 sRet = -1;
@@ -122,15 +122,18 @@ int kcp_output(const char *buf, int len, ikcpcb *kcp, void *user)
 	   return 0;
 	}
 
+	IKCP_SEG *kcp_seg = (IKCP_SEG *)buf;;
+    PRINTF("_______kcp_seg________%s______\n", (char *)kcp_seg->data);
+
 #if defined(DEFINE_SERVER)
 	if(SUCCESS_1 != init_send_handle(g_server_data.sServerFd,
-		         user, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
+		        (void *)buf, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
 	{
 	   PRINTF("Send failed.\n");	
 	}
 #elif defined(DEFINE_CLIENT)
 	if(SUCCESS_1 != init_send_handle(g_client_data.sClientFd,
-		           user, MAX_CLIENT_BUF_SIZE, &g_client_data.stTransAddr))
+		          (void *)buf, MAX_CLIENT_BUF_SIZE, &g_client_data.stTransAddr))
 	{
 	   PRINTF("Send failed.\n");	
 	}
@@ -229,13 +232,12 @@ static int MySplit(char *src, char *delim, IString* istr)
 	for(i = 1;p;i++)
     {
         (*istr).num++;
-		
         (*istr).str = (char**)realloc((*istr).str,(i+1)*sizeof(char *));
         if ((*istr).str == NULL) {ret = 0;goto exit;}
         (*istr).str[i] = (char*)calloc(strlen(p)+1,sizeof(char));
         if ((*istr).str[0] == NULL){ret = 0;goto exit;}
         strcpy((*istr).str[i],p);
-	p = strtok(NULL, delim);
+		p = strtok(NULL, delim);
     }
 exit:
     free(str);
@@ -250,7 +252,6 @@ static void MySplitFree(IString* istr)
          free((*istr).str[i]);
       free((*istr).str);
 }
-
  
 
 KCP_ARG kcp_arg = {
