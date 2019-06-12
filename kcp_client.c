@@ -104,7 +104,7 @@ static void main_loop(char *ClientDataBuf)
 		(void)kcp_arg.init_recv_handle(g_client_data.sClientFd, &g_client_data.stTransAddr);
 #if 1
 		char GetState;
-		printf("_______________continue or exit? y/n\n");
+		printf("_______________continue please press ENTER else press other.\n");
 		GetState = getchar();
 		if(GetState != '\n')break;
 #endif
