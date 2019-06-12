@@ -17,7 +17,7 @@
 
 //#include "iuuid.h"
 #define MAX_KCP_NUM 32
-#define MAX_CLIENT_BUF_SIZE 1024
+#define MAX_CLIENT_BUF_SIZE 1344
 
 #define SUCCESS_0   0
 #define FALSE_0     0
