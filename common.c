@@ -225,7 +225,8 @@ static int MySplit(char *src, char *delim, IString* istr)
 	(*istr).str[0] = (char*)calloc(strlen(p)+1,sizeof(char));
 	if ((*istr).str[0] == NULL) return 0;
  	strcpy((*istr).str[0],p);
-	for(i = 1;p = strtok(NULL, delim);i++)
+	p = strtok(NULL, delim);
+	for(i = 1;p;i++)
     {
         (*istr).num++;
 		
@@ -234,6 +235,7 @@ static int MySplit(char *src, char *delim, IString* istr)
         (*istr).str[i] = (char*)calloc(strlen(p)+1,sizeof(char));
         if ((*istr).str[0] == NULL){ret = 0;goto exit;}
         strcpy((*istr).str[i],p);
+	p = strtok(NULL, delim);
     }
 exit:
     free(str);
