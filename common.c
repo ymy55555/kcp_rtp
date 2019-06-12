@@ -77,7 +77,7 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 		return FALSE_0;
 	 }
 	 	 
-#if 1
+#if 1//判断ip是否存在，存在则跟新端口，不能存在添加新的队列节点
 
 	if(kcp_arg.MySplit((char *)sRecvBuf, (char *)"|", &istr))
 	{
