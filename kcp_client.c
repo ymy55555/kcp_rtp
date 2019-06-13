@@ -37,11 +37,12 @@ static int config_transfrom_data(char *ClientDataBuf)
 	{
         PRINTF("Get client ip is failed .\n");
 		return FALSE_0;
-    }
+    }		   
 	strcpy(stClientData.ClientIpBuf, TmpIpBuf);
 	sprintf(ClientDataBuf, "%s|%s",	stClientData.ClientIpBuf,
-								    stClientData.uuidBuf);
-	                                //stClientData.DataBuf //传输数据
+								         stClientData.uuidBuf);
+	                                //stClientData.DataBuf //真正要传输数据
+	PRINTF("______________send buf: %s:\n", ClientDataBuf);
 	return SUCCESS_1;
 }
 
@@ -53,8 +54,7 @@ static int init_client()
 	    PRINTF("Socket failed.\n");
 		return FALSE_0;
 	}
-#if defined(SOCKET_RECV_NOBLOCK)
-	//连接非阻塞
+#if defined(SOCKET_RECV_NOBLOCK)//连接非阻塞
 	int sNoBlock = 1;
     if(ioctl( g_client_data.sClientFd, FIONBIO, &sNoBlock) < 0)
 	{		
@@ -79,8 +79,8 @@ static void main_loop(char ClientDataBuf[MAX_CLIENT_BUF_SIZE])
 	int sRet = -1;
     while(g_client_data.sSysRunState)
 	{
-		 kcp_arg.isleep(1);
-		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());	
+		 
+	     kcp_arg.isleep(1);
 		 sRet = ikcp_send(kcp_arg.kcp, ClientDataBuf, MAX_CLIENT_BUF_SIZE);
 		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
 		 if(sRet < 0)
@@ -89,9 +89,9 @@ static void main_loop(char ClientDataBuf[MAX_CLIENT_BUF_SIZE])
 			   continue;
 		 }
 		(void)kcp_arg.init_recv_handle(g_client_data.sClientFd, &g_client_data.stTransAddr);
-#if 1
+#if 1//test
 		char GetState;
-		printf("_______________continue please press ENTER else press other. \n");
+		printf("continue please press ENTER.\n");
 		GetState = getchar();
 		if(GetState != '\n')break;
 #endif
@@ -120,7 +120,7 @@ int main(int argc, char const *argv[])
 	 }
 
 	 kcp_arg.init_kcp(AF_INET, (void *)ClientDataBuf, g_client_data.sWndSize,
-	                        NORMAL_MODE, g_client_data.sUpdateTime);
+	                                  NORMAL_MODE, g_client_data.sUpdateTime);
 	 main_loop(ClientDataBuf);
 	 free_client();
      return 0;
