@@ -34,6 +34,15 @@ static int init_udp_server()
 		close(g_server_data.sServerFd);
 		return FALSE_0;
 	}
+	
+#if defined(SOCKET_RECV_NOBLOCK)//连接非阻塞
+	int sNoBlock = 1;
+	if(ioctl( g_server_data.sServerFd, FIONBIO, &sNoBlock) < 0)
+	{		
+	   PRINTF("ioctl FIONBIO failed.\n"); 
+	   return FALSE_0;	 
+	}
+#endif
     sRet = bind(g_server_data.sServerFd, (struct sockaddr*)&g_server_data.stServerAddr,
                 sizeof(g_server_data.stServerAddr));
 	if(SUCCESS_0 != sRet)
@@ -64,6 +73,7 @@ static void free_server()
 {
    close( g_server_data.sServerFd);
    cirqueue_arg.cirqueue_free(cirqueue_arg.pqueue);
+   ikcp_release(kcp_arg.kcp);
 }
 
 /*
@@ -96,16 +106,18 @@ static void free_server()
 
 int main(int argc, char const *argv[])
 {
+	 
+	 char ClientDataBuf[MAX_CLIENT_BUF_SIZE];
+	// KCP_TRANSFROM_DATA stClientData;
 	 config_server_param();
-	 KCP_TRANSFROM_DATA stClientData;
 	 if(SUCCESS_1 != init_server())
 	 {
 	    PRINTF("Init server failed.\n");
 		return FALSE_0;
 	 }
-	 kcp_arg.init_kcp(AF_INET, (void *)&stClientData, g_server_data.sWndSize, DEFAULT_MODE, g_server_data.sUpdateTime);
+	 kcp_arg.init_kcp(AF_INET, (void *)ClientDataBuf, g_server_data.sWndSize, NORMAL_MODE, g_server_data.sUpdateTime);
 	 while(1)
-     {
+     {  
 	      kcp_arg.isleep(1);
           (void)kcp_arg.init_recv_handle(g_server_data.sServerFd, &g_server_data.stTransAddr);
          //待定义发送规则
