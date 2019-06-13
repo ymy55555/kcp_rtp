@@ -2,6 +2,7 @@
 #define __KCP_SERVER_H__
 #include "common.h"
 
+//#define SOCKET_RECV_NOBLOCK
 //反应当前实时数据
 typedef struct _udp_server_data_
 {
