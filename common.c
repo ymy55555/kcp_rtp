@@ -31,17 +31,10 @@ static int init_send_handle(int sSocketFd, void *sSendBuf,
                  int sSendBufSize, struct sockaddr_in *stTransAddr)
 {
 	int sRet = -1;
-#if 0
-	IString istr;
-	if(kcp_arg.MySplit((char *)sSendBuf, (char *)"|", &istr))
-	{
-		printf("____________sendto___uuid:%s\n", istr.str[0]);
-		printf("____________sendto____ip:%s  port:%d\n", istr.str[1], atoi(istr.str[2]));
-		kcp_arg.MySplitFree(&istr);
-	}
-#endif  
+	ikcp_update(kcp_arg.kcp, kcp_arg.iclock());    
 	sRet = sendto(sSocketFd, sSendBuf, sSendBufSize, 0,
 		(struct sockaddr *)stTransAddr, sizeof(struct sockaddr_in));
+	ikcp_update(kcp_arg.kcp, kcp_arg.iclock());    
 	if(0 == sRet)
 	{
 		PRINTF("send failed,Receiver is exit.\n");
@@ -61,63 +54,65 @@ static int init_send_handle(int sSocketFd, void *sSendBuf,
 static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 {
      int sRet = -1;
-	 char *sRecvBuf;
-	// IString istr;
+	 char  RecvBuf[MAX_CLIENT_BUF_SIZE];
+#if defined(DEFINE_SERVER)
+	 char  TmpRecvBuf[MAX_CLIENT_BUF_SIZE];
+	 IString istr;
+#endif
 	 cirqueue_datatype stCirqueueData;
 	 memset(&stCirqueueData, 0, sizeof(stCirqueueData));
-	 sRecvBuf = (void *)malloc(MAX_CLIENT_BUF_SIZE);
 	 socklen_t addr_len = sizeof(struct sockaddr_in);
-	 kcp_arg.isleep(1);
-	 sRet = recvfrom(sSocketFd, (void *)sRecvBuf,MAX_CLIENT_BUF_SIZE, 0,
-	 	                         (struct sockaddr *)stTransAddr, &addr_len);
-	 if(-1 == sRet)
+	 while(1)
 	 {
-		PRINTF("recvfrom data failed.   errno %d\n", errno);
-		//...
-		return FALSE_0;
+		 kcp_arg.isleep(1);
+		 sRet = recvfrom(sSocketFd, (void *)RecvBuf,MAX_CLIENT_BUF_SIZE, 0,
+		 	                         (struct sockaddr *)stTransAddr, &addr_len);
+		 if(sRet < 0)
+		 {
+			PRINTF("recvfrom data failed.   errno %d\n", errno);
+			//...
+			break;;
+		 }
+		 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
+		 sRet = -1;
+		 sRet = ikcp_input(kcp_arg.kcp, RecvBuf, MAX_CLIENT_BUF_SIZE);
+		 kcp_arg.isleep(1);
+		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());	
+		 //PRINTF("ikcp_input:%s\n", sRecvBuf);
+	     if (sRet < 0) 
+		 {
+	        PRINTF("ikcp_input error, ret :%d\n", sRet);
+			break;
+	     }
 	 }
-	 
-	 IKCP_SEG *kcp_seg = (IKCP_SEG *)sRecvBuf;;
-	 PRINTF("_______kcp_seg________%s______\n", (char *)kcp_seg->data);
-
-#if 0
-	if(kcp_arg.MySplit((char *)sRecvBuf, (char *)"|", &istr))
-	{
-		 memcpy(stCirqueueData.ClientIpBuf, istr.str[0], 15);
-		 memcpy(stCirqueueData.uuidBuf, istr.str[1], 36);
-		 kcp_arg.MySplitFree(&istr); 
-	 }
-	
-	stCirqueueData.uClientPort = ntohs(stTransAddr->sin_port);
-	 printf("-----------recv-client uuid:%s\n", stCirqueueData.uuidBuf);
-	 
-	 printf("-----------recv-client ip:%s---port:%d\n", stCirqueueData.ClientIpBuf, 
-	 	                                                stCirqueueData.uClientPort);
-	 cirqueue_arg.cirqueue_insert(cirqueue_arg.pqueue, stCirqueueData);
-#endif	 
-	 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
 	 sRet = -1;
-	 sRet = ikcp_input(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
-	 kcp_arg.isleep(1);
-	 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());	
-	 //PRINTF("ikcp_input:%s\n", sRecvBuf);
-     if (sRet < 0) 
-	 {
-        PRINTF("ikcp_input error, ret :%d\n", sRet);
-		return FALSE_0;
-     }
-	 sRet = -1;
-	 PRINTF("_______________*********************************_________________\n");
      while(1)
 	 {
-        sRet = ikcp_recv(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
+        sRet = ikcp_recv(kcp_arg.kcp, RecvBuf, MAX_CLIENT_BUF_SIZE);
 		kcp_arg.isleep(1);
 		ikcp_update(kcp_arg.kcp, kcp_arg.iclock());    
         if(sRet < 0){
             break;
         }
-	    ikcp_send(kcp_arg.kcp, sRecvBuf, sRet);//临时数据回射
+	    ikcp_send(kcp_arg.kcp, RecvBuf, sRet);//命令应答发送
     }
+	//PRINTF("______________%s____%d_\n", RecvBuf, strlen(RecvBuf));
+#if  defined(DEFINE_SERVER)//队列负责传输数据，取数据的地方负责对客户端做区分、对数据做区分
+	if(strlen(RecvBuf) > MAX_CLIENT_BUF_MIN)//传输数据最低限制
+	{
+	     memcpy(TmpRecvBuf, RecvBuf, MAX_CLIENT_BUF_SIZE);
+		 if(kcp_arg.MySplit(TmpRecvBuf, (char *)"|", &istr))
+		 {
+			  memcpy(stCirqueueData.ClientIpBuf, istr.str[0], 15);
+			  memcpy(stCirqueueData.uuidBuf, istr.str[1], 36);
+			  kcp_arg.MySplitFree(&istr); 
+		  }
+		  stCirqueueData.uClientPort = ntohs(stTransAddr->sin_port);
+		  printf("------- recv-client  uuid:%s\n", stCirqueueData.uuidBuf);
+		  printf("-----------recv-client ip:%s---port:%d\n", stCirqueueData.ClientIpBuf, 
+		  cirqueue_arg.cirqueue_insert(cirqueue_arg.pqueue, stCirqueueData);
+	}
+#endif
 	return SUCCESS_1;
 }
 
@@ -128,10 +123,6 @@ int kcp_output(const char *buf, int len, ikcpcb *kcp, void *user)
        PRINTF("user is null.\n");
 	   return 0;
 	}
-
-	IKCP_SEG *kcp_seg = (IKCP_SEG *)buf;;
-    PRINTF("_______kcp_seg________%s______\n", (char *)kcp_seg->data);
-
 #if defined(DEFINE_SERVER)
 	if(SUCCESS_1 != init_send_handle(g_server_data.sServerFd,
 		        (void *)buf, MAX_CLIENT_BUF_SIZE, &g_server_data.stTransAddr))
