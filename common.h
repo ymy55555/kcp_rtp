@@ -18,6 +18,8 @@
 //#include "iuuid.h"
 #define MAX_KCP_NUM 32
 #define MAX_CLIENT_BUF_SIZE 1408
+#define MAX_CLIENT_BUF_MIN 1
+
 
 #define SUCCESS_0   0
 #define FALSE_0     0
@@ -25,7 +27,7 @@
 #define FALSE_1     1
 
 #define UDP_IP  "192.168.5.84"  //"127.0.0.1"
-#define UDP_PORT 6000
+#define UDP_PORT 60000
 
 
 #define PRINTF(fmt...)   \
@@ -66,7 +68,6 @@ typedef struct _kcp_transfrom_data_
 	char uuidBuf[36];
 	char DataBuf[512];
 	char ClientIpBuf[15];
-	int sClientPort;
 }KCP_TRANSFROM_DATA;
 
 typedef struct ikcp_seg
