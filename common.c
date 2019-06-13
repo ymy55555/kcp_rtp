@@ -62,12 +62,12 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 {
      int sRet = -1;
 	 char *sRecvBuf;
-	 IString istr;
+	// IString istr;
 	 cirqueue_datatype stCirqueueData;
 	 memset(&stCirqueueData, 0, sizeof(stCirqueueData));
 	 sRecvBuf = (void *)malloc(MAX_CLIENT_BUF_SIZE);
 	 socklen_t addr_len = sizeof(struct sockaddr_in);
-	 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
+	 kcp_arg.isleep(1);
 	 sRet = recvfrom(sSocketFd, (void *)sRecvBuf,MAX_CLIENT_BUF_SIZE, 0,
 	 	                         (struct sockaddr *)stTransAddr, &addr_len);
 	 if(-1 == sRet)
@@ -76,12 +76,15 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 		//...
 		return FALSE_0;
 	 }
+	 
+	 IKCP_SEG *kcp_seg = (IKCP_SEG *)sRecvBuf;;
+	 PRINTF("_______kcp_seg________%s______\n", (char *)kcp_seg->data);
 
 #if 0
 	if(kcp_arg.MySplit((char *)sRecvBuf, (char *)"|", &istr))
 	{
-		 memcpy(stCirqueueData.uuidBuf, istr.str[0], 36);
-		 memcpy(stCirqueueData.ClientIpBuf, istr.str[1], 15);
+		 memcpy(stCirqueueData.ClientIpBuf, istr.str[0], 15);
+		 memcpy(stCirqueueData.uuidBuf, istr.str[1], 36);
 		 kcp_arg.MySplitFree(&istr); 
 	 }
 	
@@ -95,6 +98,8 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 	 //kcp接收到下层协议UDP传进来的数据底层数据buffer转换成kcp的数据包格式
 	 sRet = -1;
 	 sRet = ikcp_input(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
+	 kcp_arg.isleep(1);
+	 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());	
 	 //PRINTF("ikcp_input:%s\n", sRecvBuf);
      if (sRet < 0) 
 	 {
@@ -102,14 +107,16 @@ static int init_recv_handle(int sSocketFd, struct sockaddr_in *stTransAddr)
 		return FALSE_0;
      }
 	 sRet = -1;
+	 PRINTF("_______________*********************************_________________\n");
      while(1)
 	 {
-	    kcp_arg.isleep(1);
         sRet = ikcp_recv(kcp_arg.kcp, sRecvBuf, MAX_CLIENT_BUF_SIZE);
+		kcp_arg.isleep(1);
+		ikcp_update(kcp_arg.kcp, kcp_arg.iclock());    
         if(sRet < 0){
             break;
         }
-		   ikcp_send(kcp_arg.kcp, sRecvBuf, sRet);//临时数据回射
+	    ikcp_send(kcp_arg.kcp, sRecvBuf, sRet);//临时数据回射
     }
 	return SUCCESS_1;
 }
