@@ -2,13 +2,6 @@
 #include "kcp_client.h"
 #include "cirqueue.h"
 
-
-    //int sClientFd;
-	//int sSysRunState;
-	//int sWndSize;
-	//int sUpdateTime;
-	//struct sockaddr_in stTransAddr;
-
 UDP_CLIENT_DATA g_client_data = { 
     .sClientFd = -1,
 	.stTransAddr = {},
@@ -26,12 +19,10 @@ static void config_net_param()
 
 static int config_transfrom_data(char *ClientDataBuf)
 {
-     
 	uuid_t	uuid;  
 	int sRet = -1;
 	uuid_clear(uuid);
 	char TmpIpBuf[15] = {0};
-	int sTmpPort = -1;
 	KCP_TRANSFROM_DATA stClientData;
 	sRet = uuid_generate_time_safe(uuid);
 	if(SUCCESS_0 != sRet)
@@ -47,15 +38,10 @@ static int config_transfrom_data(char *ClientDataBuf)
         PRINTF("Get client ip is failed .\n");
 		return FALSE_0;
     }
-	sTmpPort = ntohs(g_client_data.stTransAddr.sin_port);
 	strcpy(stClientData.ClientIpBuf, TmpIpBuf);
-	stClientData.sClientPort = sTmpPort; 
-    //printf("client ip:%s  port:%d\n", TmpIpBuf, sTmpPort);
-	
-	sprintf(ClientDataBuf, "%s|%s|%d|%s", stClientData.uuidBuf,
-										  stClientData.ClientIpBuf,
-										  stClientData.sClientPort,
-										  stClientData.DataBuf);
+	sprintf(ClientDataBuf, "%s|%s",	stClientData.ClientIpBuf,
+								    stClientData.uuidBuf);
+	                                //stClientData.DataBuf //传输数据
 	return SUCCESS_1;
 }
 
@@ -85,26 +71,27 @@ static void free_client()
     
     close(g_client_data.sClientFd);
 	cirqueue_arg.cirqueue_free(cirqueue_arg.pqueue);
+	ikcp_release(kcp_arg.kcp);
 }
 
-static void main_loop(char *ClientDataBuf)
+static void main_loop(char ClientDataBuf[MAX_CLIENT_BUF_SIZE])
 {
 	int sRet = -1;
     while(g_client_data.sSysRunState)
 	{
 		 kcp_arg.isleep(1);
-		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());			 
+		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());	
 		 sRet = ikcp_send(kcp_arg.kcp, ClientDataBuf, MAX_CLIENT_BUF_SIZE);
+		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
 		 if(sRet < 0)
 		 {
 			   PRINTF("client send failed.\n");
 			   continue;
 		 }
-		 ikcp_update(kcp_arg.kcp, kcp_arg.iclock());
 		(void)kcp_arg.init_recv_handle(g_client_data.sClientFd, &g_client_data.stTransAddr);
 #if 1
 		char GetState;
-		printf("_______________continue please press ENTER else press other.\n");
+		printf("_______________continue please press ENTER else press other. \n");
 		GetState = getchar();
 		if(GetState != '\n')break;
 #endif
@@ -133,7 +120,7 @@ int main(int argc, char const *argv[])
 	 }
 
 	 kcp_arg.init_kcp(AF_INET, (void *)ClientDataBuf, g_client_data.sWndSize,
-	                        DEFAULT_MODE, g_client_data.sUpdateTime);
+	                        NORMAL_MODE, g_client_data.sUpdateTime);
 	 main_loop(ClientDataBuf);
 	 free_client();
      return 0;
