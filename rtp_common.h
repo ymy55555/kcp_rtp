@@ -7,12 +7,16 @@
 #include <memory.h>
 #include <assert.h>
 #include <conio.h>
-#include <WinSock2.h>
+//#include <WinSock2.h>
 
-#pragma comment(lib,"ws2_32.lib")
+//#pragma comment(lib,"ws2_32.lib")
 
 #define INPUT_FILE_MAX_SIZE 104857600//100M
-#define H264_FILE "./sender.264"
+#define OUTPUT_FILE_MAX_SIZE 104857600//100M
+#define H264_SEND_FILE "./sender.264"
+#define H264_RECV_FILE "./recv.264"
+#define MAX_DATA_SIZE 1400
+#define  H264 96                   
 
 #define SUCCESS_0   0
 #define FALSE_0     0
@@ -155,31 +159,46 @@ typedef struct
 	unsigned char S:1;          //分片包第一个包 S = 1 ,其他= 0 。    
 } FU_HEADER;   // 1 BYTES 
 
-
-int OpenBitstreamFile (char *fn);                           //打开要存入的本地文件
-void FreeNALU(NALU_t *n);                                   //释放nal 资源     
-NALU_t *AllocNALU(int buffersize);                          //分配nal 资源
-int InitiateWinsock();                                      //加载socket库
-unsigned char * rtp_unpackage(char *bufIn,int len);         //解包程序
-
-
-typedef struct _rtp_arg_
+typedef struct _rtp_send_arg_
 {
      FILE * pRtpFile;
 	 NALU_t *stNalu;
 	 int frame_number;	   //帧号
 	 int pocket_number;   //包号
 	 int total_sent;	   //已经发送的总共数据
-	 unsigned char sendbuf[MAX_DATA_ASIZE];
+	 unsigned char sendbuf[MAX_DATA_SIZE];
 	 int sSendFlag;
-}RTP_ARG_LIST;
-extern RTP_ARG_LIST rtp_arg;
+}RTP_SEND_ARG;
+typedef struct _rtp_recv_arg_
+{
+     FILE * pRtpFile;
+	 NALU_t *stNalu;
+	 int total_bytes;				  //当前包传出的数据
+	 static int total_recved;		  //一共传输的数据
+	 int fwrite_number;			  //存入文件的数据长度
+	 RTPpacket_t *pRtpPack;
+}RTP_RECV_ARG;
 
+/***********************对外接口***********/
+/* FIXME...
+外部操作需要锁
+某些统计变量需要定期在特定情况下清零
+有些函数形参指针函数内是否释放待考虑
+减少全局变量，尽量只留对外有用接口
+*/
+extern RTP_SEND_ARG rtp_send_arg;
+extern RTP_RECV_ARG rtp_recv_arg;
+extern int  TnitRtpSend();
+extern int  TnitRtpRecv();
+extern int InitWinsock();
+extern int CheckStartCode(unsigned char *Buf, int sNum);
+extern void FillNaluHead();
+extern void FillFuIndicat();
+extern void FillFuHead(int S, int E, int R);
+extern void RtpSendFree(NALU_t *Nalu);
+static void RtpRecvFree();
+extern int  rtp_unpackage(char *bufIn, int len);
+extern int GetOnceNalu();
+extern int GetRtpData();
 
-///////////////////////////////////
-#define  USE_PORT 7000
-#define  USE_IP "192.168.40.1"
-#define  MAX_DATA_ASIZE 1500
-#define  H264 96                   //负载类型
-/////////////////////////////////////
 #endif
