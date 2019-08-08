@@ -147,14 +147,14 @@ int SendRtpData(NALU_t *stNalu,
      rtp_hdr->v		   = 2; 
      rtp_hdr->p		   = 0;
      rtp_hdr->x		   = 0;
-     rtp_hdr->cc		   = 0;
-     rtp_hdr->pt		   = H264;
+     rtp_hdr->cc           = 0;
+     rtp_hdr->pt           = H264;
      rtp_hdr->ssrc	   = stNalu->ssrc;
-     rtp_hdr->timestamp = stNalu->timecode * 90000 / 1000;
+     rtp_hdr->timestamp    = stNalu->timecode * 90000 / 1000;
      nalu_ind = (NALU_OR_IND_HEADER *)&pRtpSendBuf[12]; 
-     nalu_ind->F	       =  stNalu->forbidden_bit >> 7;
+     nalu_ind->F	   =  stNalu->forbidden_bit >> 7;
      nalu_ind->NRI	   =  stNalu->nal_reference_idc>>5;
-     rtp_hdr->m         = 0;
+     rtp_hdr->m            = 0;
 	
      package_number = package_number  >=  0xffff ? 0 : package_number;
      if(stNalu->len < SEND_MAX_SIZE)                                        
@@ -163,7 +163,7 @@ int SendRtpData(NALU_t *stNalu,
         nalu_ind->TYPE     =  stNalu->nal_unit_type; 
 	if((0x01 == (stNalu->nal_unit_type & 0x1f)) || (0x05 == (stNalu->nal_unit_type & 0x1f)))
 	{
-	   rtp_hdr->m		 = 1;
+	   rtp_hdr->m= 1;
 	}
         nalu_payload = &pRtpSendBuf[12]; 	
         memcpy(nalu_payload, stNalu->buf, stNalu->len);
@@ -183,7 +183,7 @@ int SendRtpData(NALU_t *stNalu,
 	      {
 		    if((0x01 == (stNalu->nal_unit_type & 0x1f)) ||	(0x05 == (stNalu->nal_unit_type & 0x1f)))
 		    {
-			rtp_hdr->m	 = 1;
+			rtp_hdr->m = 1;
 		     }
 		}
 		fu_hdr = (FU_HEADER*)&pRtpSendBuf[13]; 
