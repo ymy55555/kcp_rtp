@@ -109,7 +109,7 @@ int GetOnceNalu_v2(unsigned char *pStreamBuf,
 }
 
 /*
-*单包，固定起始码 
+*单包，固定起始码 ，可以直接传海思原始流减少形参
 *输入：pPackAddr、sPackSize、timecode输出：stNalu
 */
 void GetOnceNalu_v1(unsigned char *pPackAddr, int sPackSize, unsigned int timecode, NALU_t *stNalu)
