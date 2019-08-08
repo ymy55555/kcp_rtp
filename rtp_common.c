@@ -78,13 +78,13 @@ int GetOnceNalu_v2(unsigned char *pStreamBuf,
                                           NALU_t *stNalu)
 {
 	int sTmpCount = 0;
-    int sStartCodeFlag = 0;
+        int sStartCodeFlag = 0;
 	static int sSendpackCount = 0;
-    sStartCodeFlag= JudgeNaluStartCodeLen(pStreamBuf);
+        sStartCodeFlag= JudgeNaluStartCodeLen(pStreamBuf);
 	if(FALSE_0 == sStartCodeFlag)
 	{
 	   PRINTF("not find start code.\n");
-       return FALSE_0;
+           return FALSE_0;
 	}
 	stNalu->startcodeprefix_len = sStartCodeFlag;
 	sSendpackCount += sStartCodeFlag;
@@ -129,77 +129,75 @@ void GetOneRtpPackage(unsigned char *pPackage, unsigned int sPackagelen)
      //处理每个RTP包 例如网络发送   
 }
 
+
 //输入：stNalu  输出：GetOneRtpPackage
 int SendRtpData(NALU_t *stNalu,
                   void(*GetOneRtpPackage(unsigned char *pPackage, unsigned int sPackagelen)))
 {	
-    int size = 0, send_size = 0;
-	FU_HEADER *fu_hdr;
-	RTP_HEADER  * rtp_hdr = NULL ;
-	unsigned char *nalu_payload = NULL; 
-	NALU_OR_IND_HEADER *nalu_ind = NULL;
-	unsigned char pRtpSendBuf[SEND_MAX_SIZE + 14];
-    static  unsigned short package_number = 0;
+     int size = 0, send_size = 0;
+     FU_HEADER *fu_hdr;
+     RTP_HEADER  * rtp_hdr = NULL ;
+     unsigned char *nalu_payload = NULL; 
+     NALU_OR_IND_HEADER *nalu_ind = NULL;
+     unsigned char pRtpSendBuf[SEND_MAX_SIZE + 14];
+     static  unsigned short package_number = 0;
 	
-	memset(pRtpSendBuf, 0, SEND_MAX_SIZE + 14);
-    rtp_hdr = (RTP_HEADER *)&pRtpSendBuf[0];			 
-    rtp_hdr->v		   = 2; 
-    rtp_hdr->p		   = 0;
-    rtp_hdr->x		   = 0;
-    rtp_hdr->cc		   = 0;
-    rtp_hdr->pt		   = H264;
-    rtp_hdr->ssrc	   = stNalu->ssrc;
-	rtp_hdr->timestamp = stNalu->timecode * 90000 / 1000;
-    nalu_ind = (NALU_OR_IND_HEADER *)&pRtpSendBuf[12]; 
-    nalu_ind->F	       =  stNalu->forbidden_bit >> 7;
-    nalu_ind->NRI	   =  stNalu->nal_reference_idc>>5;
-	rtp_hdr->m         = 0;
+     memset(pRtpSendBuf, 0, SEND_MAX_SIZE + 14);
+     rtp_hdr = (RTP_HEADER *)&pRtpSendBuf[0];			 
+     rtp_hdr->v		   = 2; 
+     rtp_hdr->p		   = 0;
+     rtp_hdr->x		   = 0;
+     rtp_hdr->cc		   = 0;
+     rtp_hdr->pt		   = H264;
+     rtp_hdr->ssrc	   = stNalu->ssrc;
+     rtp_hdr->timestamp = stNalu->timecode * 90000 / 1000;
+     nalu_ind = (NALU_OR_IND_HEADER *)&pRtpSendBuf[12]; 
+     nalu_ind->F	       =  stNalu->forbidden_bit >> 7;
+     nalu_ind->NRI	   =  stNalu->nal_reference_idc>>5;
+     rtp_hdr->m         = 0;
 	
-	package_number = package_number  >=  0xffff ? 0 : package_number;
-	if(stNalu->len < SEND_MAX_SIZE)                                        
-	{
+     package_number = package_number  >=  0xffff ? 0 : package_number;
+     if(stNalu->len < SEND_MAX_SIZE)                                        
+     {
         rtp_hdr->seq 	   = package_number++;
         nalu_ind->TYPE     =  stNalu->nal_unit_type; 
-		if((0x01 == (stNalu->nal_unit_type & 0x1f)) || (0x05 == (stNalu->nal_unit_type & 0x1f)))
-		{
-		   rtp_hdr->m		 = 1;
-		}
+	if((0x01 == (stNalu->nal_unit_type & 0x1f)) || (0x05 == (stNalu->nal_unit_type & 0x1f)))
+	{
+	   rtp_hdr->m		 = 1;
+	}
         nalu_payload = &pRtpSendBuf[12]; 	
         memcpy(nalu_payload, stNalu->buf, stNalu->len);
-		GetOneRtpPackage(pRtpSendBuf,  stNalu->len + 12);
-	}
-	else if(stNalu->len >= SEND_MAX_SIZE)                                     
-	{
+	GetOneRtpPackage(pRtpSendBuf,  stNalu->len + 12);
+    }else if(stNalu->len >= SEND_MAX_SIZE)                                     
+    {
 		
-	    size  = stNalu->len;
+	size  = stNalu->len;
         nalu_ind->TYPE  =  28; 
-		while(0 < size)
-		{
-			rtp_hdr->seq = package_number++;
-			
-			//在第一个字节跳过nalu头，为了地址长度和总的stNalu->len一致需要在尾包减一
-            send_size =  (size <= SEND_MAX_SIZE) ? (size - 1): SEND_MAX_SIZE;
-			
-			//标记一帧尾包
-			if(size <= SEND_MAX_SIZE)
-			{
-				if((0x01 == (stNalu->nal_unit_type & 0x1f)) ||	(0x05 == (stNalu->nal_unit_type & 0x1f)))
-				{
-					rtp_hdr->m	 = 1;
-				}
-			}
-			fu_hdr = (FU_HEADER*)&pRtpSendBuf[13]; 
-			fu_hdr->S	 = size <= SEND_MAX_SIZE ? 0 : 1;
-			fu_hdr->E	 = !fu_hdr->S;
-			fu_hdr->R	 = 0;
-			fu_hdr->TYPE = stNalu->nal_unit_type;
-			nalu_payload = &pRtpSendBuf[14];
-			memcpy(nalu_payload, stNalu->buf + stNalu->len - size + 1, send_size);
-			size -= SEND_MAX_SIZE;
-			GetOneRtpPackage(pRtpSendBuf, send_size + 14);
+	while(0 < size)
+	{
+	       rtp_hdr->seq = package_number++;
+	       //在第一个字节跳过nalu头，为了地址长度和总的stNalu->len一致需要在尾包减一
+               send_size =  (size <= SEND_MAX_SIZE) ? (size - 1): SEND_MAX_SIZE;
+	      //标记一帧尾包
+	       if(size <= SEND_MAX_SIZE)
+	      {
+		    if((0x01 == (stNalu->nal_unit_type & 0x1f)) ||	(0x05 == (stNalu->nal_unit_type & 0x1f)))
+		    {
+			rtp_hdr->m	 = 1;
+		     }
 		}
-	}
-	return 1;   
+		fu_hdr = (FU_HEADER*)&pRtpSendBuf[13]; 
+		fu_hdr->S	 = size <= SEND_MAX_SIZE ? 0 : 1;
+		fu_hdr->E	 = !fu_hdr->S;
+		fu_hdr->R	 = 0;
+		fu_hdr->TYPE = stNalu->nal_unit_type;
+		nalu_payload = &pRtpSendBuf[14];
+		memcpy(nalu_payload, stNalu->buf + stNalu->len - size + 1, send_size);
+		size -= SEND_MAX_SIZE;
+		GetOneRtpPackage(pRtpSendBuf, send_size + 14);
+	 }
+      }
+      return 1;   
 }
  
 
