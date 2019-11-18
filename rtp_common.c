@@ -1,3 +1,4 @@
+//cp -f $(eval echo '$'"AUTOFOCUS_$2$4") ../
 static unsigned int get_randdom_seq(void)
 {
    unsigned  int  seed;
